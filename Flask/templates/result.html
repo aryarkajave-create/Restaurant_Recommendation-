@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Results - Essenza Dining</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+<style type="text/tailwindcss">
+body { font-family: 'Outfit', sans-serif; background-color: #F9F7F2; color: #1A1A1A; }
+
+.glass { @apply bg-white/70 border border-black/5 backdrop-blur-xl; }
+
+.card-hover { @apply transition-all duration-500 ease-out; }
+.card-hover:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+}
+
+@keyframes reveal { from {opacity:0; transform:translateY(20px);} to {opacity:1; transform:translateY(0);} }
+.fade { animation: reveal 0.7s ease; }
+
+@keyframes fillBar { from {width:0;} }
+
+.loader {
+    position: fixed;
+    inset: 0;
+    background: #F9F7F2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.loader::after {
+    content: "";
+    width: 120px;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #C5A059, transparent);
+    animation: loading 1.2s infinite;
+}
+@keyframes loading { 0% { transform: translateX(-100px); } 100% { transform: translateX(100px); } }
+
+/* TABLE CUSTOM STYLING */
+.custom-table { width: 100%; text-align: left; border-collapse: separate; border-spacing: 0 10px; }
+.custom-table th { padding: 15px; color: #A68542; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; }
+.custom-table td { padding: 20px; background: rgba(255,255,255,0.5); border-top: 1px solid rgba(0,0,0,0.03); }
+.custom-table tr:hover td { background: white; }
+</style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+<div id="loader" class="loader"></div>
+
+<nav class="px-8 py-8 flex justify-between items-center max-w-7xl mx-auto w-full">
+    <a href="/" class="text-2xl font-extrabold text-black hover:opacity-80 transition">
+        Essenza <span class="text-[#C5A059]">Dining</span>
+    </a>
+    <div class="space-x-8">
+        <a href="/" class="text-sm font-bold text-gray-400 hover:text-black uppercase">Home</a>
+        <a href="/web" class="text-sm font-bold text-[#C5A059] uppercase">Inference</a>
+    </div>
+</nav>
+
+<main class="flex-grow px-8 py-12 max-w-7xl mx-auto w-full">
+
+<div class="mb-12 border-b border-black/5 pb-10 fade">
+    <h2 class="text-5xl font-extrabold text-black mb-4">Recommendation Dashboard</h2>
+    <p class="text-gray-500">Based on your search: <span class="text-[#C5A059] font-bold">"{{ search_term }}"</span></p>
+</div>
+
+<div class="glass rounded-2xl p-6 mb-10 fade card-hover shadow-sm">
+    <h3 class="text-[#A68542] font-bold mb-2">Why these are a good match</h3>
+    <p class="text-gray-600 text-sm leading-relaxed">
+        These restaurants align with your taste based on cuisine similarity, customer ratings, and pricing patterns. Our system detects hidden flavor relationships to recommend places you're most likely to enjoy.
+    </p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 fade">
+<div class="glass p-6 rounded-xl card-hover shadow-sm">
+    <p class="text-sm text-gray-500">Average rating</p>
+    <div class="w-full h-2 bg-gray-200 rounded-full mt-3 overflow-hidden">
+        <div class="bg-black h-full rounded-full" style="width:70%; animation:fillBar 1s ease;"></div>
+    </div>
+</div>
+<div class="glass p-6 rounded-xl card-hover shadow-sm">
+    <p class="text-sm text-gray-500">Match confidence</p>
+    <div class="w-full h-2 bg-gray-200 rounded-full mt-3 overflow-hidden">
+        <div class="bg-[#C5A059] h-full rounded-full" style="width:85%; animation:fillBar 1.2s ease;"></div>
+    </div>
+</div>
+<div class="glass p-6 rounded-xl card-hover shadow-sm">
+    <p class="text-sm text-gray-500">Price alignment</p>
+    <div class="w-full h-2 bg-gray-200 rounded-full mt-3 overflow-hidden">
+        <div class="bg-gray-400 h-full rounded-full" style="width:65%; animation:fillBar 1.4s ease;"></div>
+    </div>
+</div>
+</div>
+
+<div class="rounded-2xl overflow-hidden border border-black/5 bg-white/30 fade card-hover p-4 shadow-sm">
+    <div class="overflow-x-auto text-black">
+        {{ keyword | safe }}
+    </div>
+</div>
+
+<div class="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-10">
+    <div class="glass rounded-2xl p-6 card-hover shadow-sm">
+        <h3 class="text-xl font-semibold mb-2 text-black">How people rate these places</h3>
+        <p class="text-sm text-gray-500 mb-4">A snapshot of customer satisfaction.</p>
+        <canvas id="ratingsChart"></canvas>
+    </div>
+    <div class="glass rounded-2xl p-6 card-hover shadow-sm">
+        <h3 class="text-xl font-semibold mb-2 text-black">What it typically costs</h3>
+        <p class="text-sm text-gray-500 mb-4">Estimated spend for two people.</p>
+        <canvas id="costChart"></canvas>
+    </div>
+</div>
+</main>
+
+<script>
+const names = {{ names | safe }};
+const ratings = {{ ratings | safe }};
+const cost = {{ cost | safe }};
+
+Chart.defaults.color = '#666';
+
+new Chart(document.getElementById('ratingsChart'), {
+    type: 'bar',
+    data: {
+        labels: names,
+        datasets: [{ data: ratings, backgroundColor: '#C5A059', borderRadius: 10 }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+    }
+});
+
+new Chart(document.getElementById('costChart'), {
+    type: 'line',
+    data: {
+        labels: names,
+        datasets: [{ data: cost, borderColor: '#000', tension: 0.4, pointBackgroundColor: '#C5A059' }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+    }
+});
+
+window.addEventListener("load", () => { document.getElementById("loader").style.display = "none"; });
+</script>
+</body>
+</html>
